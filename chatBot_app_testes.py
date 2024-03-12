@@ -80,7 +80,6 @@ st.set_page_config(
 with open("beta_openAI/styles.css") as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
-
 # =============================== Functions definitions ============================== #
 
 def upload_file(file_path):
