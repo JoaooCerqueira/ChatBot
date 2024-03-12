@@ -79,6 +79,7 @@ st.set_page_config(
 # initialize css
 with open("beta_openAI/styles.css") as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    testee = st.text_input("teste")
 
 # =============================== Functions definitions ============================== #
 
