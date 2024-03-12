@@ -1,0 +1,6 @@
+Retrieval Process:
+
+    1- take document and create a document Chunks - the document are spliter into smaller chunks (document splitting process)
+    2- document Chunks are saved in vector store - the vector store holds embeddings (embedding are mathematical representation)
+    3- now is to easy to look for the pieces of text 
+  

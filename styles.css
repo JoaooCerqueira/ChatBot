@@ -1,0 +1,29 @@
+.stButton > button{
+    background-color: #FF6600;
+    color:white
+}
+
+.stButton > button:hover{
+    background-color: white;
+    color: #FF6600;
+    border-color: #FF6600;
+    border: 2px solid #FF6600;
+}
+
+/* 
+[theme]
+base="light"
+primaryColor="#ff6600"
+secondaryBackgroundColor="#f9f9f9"
+textColor="#104271" 
+*/
+
+
+/* 
+.element-container{
+    display: flex;
+    justify-content: space-between;
+    border: 1px solid #ccc;
+    padding: 10px; 
+}
+*/
