@@ -1,6 +1,6 @@
 .stButton > button{
     background-color: #FF6600;
-    color:white
+    color:white;
 }
 
 .stButton > button:hover{
@@ -9,6 +9,14 @@
     border-color: #FF6600;
     border: 2px solid #FF6600;
 }
+
+.stButton > button:focus{
+    background-color: white;
+    color:white;
+}
+
+
+
 
 /* 
 [theme]
