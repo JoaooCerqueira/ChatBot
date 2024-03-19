@@ -91,11 +91,7 @@ if st.session_state.file_id_list:
     for file_id in st.session_state.file_id_list:
         file = client.files.retrieve(file_id=file_id).filename
         file_ids += (f"- {file} ") + "\n"
-        # if file_id not in assistant_files.data:
-        #     assistant_file = client.beta.assistants.files.create(
-        #         assistant_id = assistant_id,
-        #         file_id = file_id
-        #     )
+
     st.sidebar.markdown(file_ids)
 
 st.sidebar.divider()
@@ -134,7 +130,7 @@ if st.sidebar.button("**New chat**",use_container_width=True, key='teste'):
         st.sidebar.warning("**No files found. Please upload a file first.**")
 
 # =============================== Main interface ==================================== #
-st.title("Rangel ChatBot - Beta 💻")
+st.title("Rangel ChatBot - v1.1 💻")
 
 # Check sessions
 if st.session_state.stat_chat:
