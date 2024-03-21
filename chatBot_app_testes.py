@@ -1,7 +1,6 @@
 from openai import OpenAI
 import streamlit as st
-import time
-from utils.utils import upload_file, upload_chat_history, update_chat_history, process_execution_steps
+from utils.utils import upload_file, upload_chat_history, update_chat_history, process_execution_steps,process_execution_steps_stream
 
 #TODO: Melhorar o download dos ficheiros:
                 # - Definir um path comum a todos os utilizadores
@@ -56,7 +55,17 @@ if 'but_last_chat' not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+
+if "step_id" not in st.session_state:
+    st.session_state.step_id = None
+
+
+if "message_id" not in st.session_state:
+    st.session_state.message_id = None
+
+
 # ================================================================================== #
+    
 # Set up our front end page
 st.set_page_config(
     page_title="Rangel ChatBot",
@@ -140,7 +149,7 @@ if st.sidebar.button("**New chat**",use_container_width=True, key='teste'):
         st.sidebar.warning("**No files found. Please upload a file first.**")
 
 # =============================== Main interface ==================================== #
-st.title("Rangel ChatBot - Beta 💻")
+st.title("Rangel ChatBot - v1.2 💻")
 
 # Check sessions
 if st.session_state.stat_chat:
@@ -159,6 +168,7 @@ if st.session_state.stat_chat:
                 if message["type"] == "text":
                     st.markdown(message["content"])
 
+    #TODO: analisar melhor o streaming
     # Chat input for users
     if answer := st.chat_input("Escreve aqui a tua mensagem..."):
         st.session_state.messages.append(
@@ -170,7 +180,7 @@ if st.session_state.stat_chat:
         )
         with st.chat_message("user",avatar="👤"):
             st.markdown(answer)
-
+        
         # Add the user's message to the thread
         client.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
@@ -182,18 +192,9 @@ if st.session_state.stat_chat:
         run = client.beta.threads.runs.create(
             thread_id=st.session_state.thread_id,
             assistant_id=assistant_id,
+            stream= True
         )
 
-        # Show a spinner while the assistant is thinking
-        with st.spinner("Waiting for the assistant to answer..."):
-            while run.status != "completed":
-                time.sleep(1)
-                run = client.beta.threads.runs.retrieve(
-                    thread_id = st.session_state.thread_id,
-                    run_id = run.id
-                )
 
-            # Display the run steps
-            process_execution_steps(client,run.id)
-
+        process_execution_steps_stream(client, run,st.session_state.messages)
         st.rerun()

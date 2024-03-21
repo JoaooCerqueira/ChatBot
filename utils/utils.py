@@ -103,6 +103,82 @@ def process_execution_steps(client, run_id):
         else:
             print("ERR: runstep type not recognized")
 
+def process_execution_steps_stream(client, stream, messages):
+    aux = None
+    for event in stream:
+        with open("beta_openAI/teste.txt","a") as file:
+            file.write("/n"+ "----------------------------------------------------------------------------")
+            file.write("/n" + str(event))
+        if event.event == "thread.message.in_progress":
+            with st.chat_message("user",avatar="🤖"):
+                res_box = st.empty()
+                report = []
+            st.session_state.message_id = event.data.id
+
+            for content in stream:
+                with open("beta_openAI/teste.txt","a") as file:
+                    file.write("/n" + " ----------------------------------------------------------------------------")
+                    file.write("/n" + str(content))
+                if content.event == 'thread.message.delta' and content.data.id == st.session_state.message_id:
+                    for content_1 in content.data.delta.content:
+                        if content_1.type == 'text':
+                            aux = "text"
+                            report.append(content_1.text.value)
+                            result = "". join (report). strip()
+                            res_box.markdown(f'{result}')
+                        if content_1.type == 'image_file':
+                            aux = "image"
+                            image_file = content_1.image_file.file_id
+                            print("--------------"+image_file+"-------------------")
+                            image = client.files.content(image_file).content
+                            messages.append(
+                                {
+                                    "role": "assistant",
+                                    "content": image,
+                                    "type": "image"
+                                }
+                            )   
+                            with st.chat_message("user",avatar="🤖"):
+                                st.image(image)
+                else:
+                    if aux == "text":
+                        messages.append(
+                        {
+                            "role": "assistant",
+                            "content": result,
+                            "type": "text"
+                        }
+                    )
+                    break
+
+        elif event.event == "thread.run.step.in_progress" and event.data.type == "tool_calls":
+            with st.chat_message("user",avatar="🤖"):
+                res_box = st.empty()
+                report = []
+            st.session_state.step_id = event.data.id
+            for content in stream:
+                with open("beta_openAI/teste.txt","a") as file:
+                    file.write("/n"+ "----------------------------------------------------------------------------")
+                    file.write("/n" + str(content))
+                if content.event == 'thread.run.step.delta' and content.data.id == st.session_state.step_id:
+                    for content in content.data.delta.step_details.tool_calls:
+                        if content.code_interpreter.input == None:
+                            print("terminou")
+                            report = []
+                        else:
+                            report.append(content.code_interpreter.input)
+                            result = "". join (report). strip()
+                            res_box.code(f'{result}')
+                else:
+                    messages.append(
+                        {
+                        "role": "assistant",
+                        "content": result,
+                        "type": "code"
+                    }
+                    )
+                    break
+
 def upload_chat_history(client, thread_id):
     # Retrieve messages added by the assistant
     st.session_state.messages = []
