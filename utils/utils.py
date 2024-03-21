@@ -1,15 +1,20 @@
 import streamlit as st
 import datetime
+from openai import AssistantEventHandler
+from openai.types.beta.threads import Message, MessageDelta, Text
+from openai.types.beta.threads.runs import RunStep
+from typing_extensions import override
 
-def upload_file(client, file_path):
-    response = client.files.create(
+
+def upload_file(file_path):
+    response =  st.session_state.client.files.create(
         file=open(file_path, "rb"),
         purpose="assistants",
         )
     return response.id
 
 #TODO: ARRANJAR ESTA FUNCÃO, ACHO QUE NAO PRECISO DAS ANNOTATIONS
-def process_message_with_citations(client, message):
+def process_message_with_citations(message):
     """Extract content and annotations from the message and format citations as footnotes."""
     for message in message.content:
         if message.type == "text":
@@ -48,7 +53,7 @@ def process_message_with_citations(client, message):
                 )
         elif message.type == "image_file":
             image_file = message.image_file.file_id
-            image = client.files.content(image_file).content
+            image =  st.session_state.client.files.content(image_file).content
             st.session_state.messages.append(
                     {
                         "role": "assistant",
@@ -57,15 +62,15 @@ def process_message_with_citations(client, message):
                     }
                 )
 
-def process_execution_steps(client, run_id):
+def process_execution_steps(run_id):
      # Retrieve the run steps
-    run_steps = client.beta.threads.runs.steps.list(
+    run_steps =  st.session_state.client.beta.threads.runs.steps.list(
         thread_id=st.session_state.thread_id,
         run_id=run_id
     )
 
     # Retrieve messages added by the assistant
-    messages = client.beta.threads.messages.list(
+    messages =  st.session_state.client.beta.threads.messages.list(
         thread_id=st.session_state.thread_id,
         limit=100
     )
@@ -83,7 +88,7 @@ def process_execution_steps(client, run_id):
             mensage_id = tmp_list[0][1].message_id
             for message in messages:
                 if message.id == mensage_id:
-                    process_message_with_citations(client,message)
+                    process_message_with_citations(message)
 
         elif runstep_dict["type"] == "tool_calls":
             for detail in tmp_list[0][1]:
@@ -103,7 +108,7 @@ def process_execution_steps(client, run_id):
         else:
             print("ERR: runstep type not recognized")
 
-def process_execution_steps_stream(client, stream, messages):
+def process_execution_steps_stream(stream, messages):
     aux = None
     for event in stream:
         with open("beta_openAI/teste.txt","a") as file:
@@ -130,7 +135,7 @@ def process_execution_steps_stream(client, stream, messages):
                             aux = "image"
                             image_file = content_1.image_file.file_id
                             print("--------------"+image_file+"-------------------")
-                            image = client.files.content(image_file).content
+                            image =  st.session_state.client.files.content(image_file).content
                             messages.append(
                                 {
                                     "role": "assistant",
@@ -179,12 +184,12 @@ def process_execution_steps_stream(client, stream, messages):
                     )
                     break
 
-def upload_chat_history(client, thread_id):
+def upload_chat_history(thread_id):
     # Retrieve messages added by the assistant
     st.session_state.messages = []
     st.session_state.thread_id = thread_id
 
-    messages = client.beta.threads.messages.list(
+    messages =  st.session_state.client.beta.threads.messages.list(
         thread_id=thread_id, limit=100
     )
 
@@ -200,7 +205,7 @@ def upload_chat_history(client, thread_id):
     ]
 
     # Retrieve the run and run steps
-    run = client.beta.threads.runs.list(
+    run =  st.session_state.client.beta.threads.runs.list(
         thread_id=st.session_state.thread_id,
         limit=100
     )
@@ -213,7 +218,7 @@ def upload_chat_history(client, thread_id):
                     "type": "text"
                 }
             )
-            process_execution_steps(client, run.id)
+            process_execution_steps( run.id)
     
     if st.session_state.messages == []:
         st.session_state.messages.append(
@@ -237,3 +242,87 @@ def update_chat_history(thread_id):
         file.write("\n" + name + " , " + thread_id)
     file.close()
     st.session_state.thread_list[name] = thread_id
+
+
+class EventHandler(AssistantEventHandler):
+  # ------------------------------------------  Text  ------------------------------------------  
+  @override
+  def on_text_created(self, text) -> None:
+    print("\n" + "--------------------------- vai ser texto ---------------------------"+ "\n")
+    with st.chat_message("user",avatar="🤖"):
+        st.session_state.message_chat = st.empty()
+    st.session_state.report = []
+    print(f"\nassistant > ", end="", flush=True)
+
+  @override
+  def on_text_delta(self, delta, snapshot):
+    st.session_state.report.append(delta.value)
+    result = "". join (st.session_state.report). strip()
+    st.session_state.message_chat.markdown(f'{result}')
+    print(delta.value, end="", flush=True)
+
+  @override
+  def on_text_done(self, text: Text):
+     print("\n" + "--------------------------- terminou texto ---------------------------"+ "\n")
+     st.session_state.messages.append(
+         {
+             "role": "assistant",
+             "content": text.value,
+             "type": "text"
+             }
+     )   
+     with open("beta_openAI/teste.txt","a") as file:
+            file.write("\n"+ "----------------------------------------------------------------------------")
+            file.write("\n" + str(text.value))
+
+  # ------------------------------------------  Image  ------------------------------------------ 
+
+  @override
+  def on_image_file_done(self, image_file):
+      image_1file = image_file.file_id
+      image =  st.session_state.client.files.content(image_1file).content
+      st.session_state.messages.append(
+         {
+             "role": "assistant",
+             "content": image,
+             "type": "image"
+             }
+      ) 
+      with st.chat_message("user",avatar="🤖"):
+          st.image(image)
+
+
+  # -------------------------------------------  Code  --------------------------------------------
+  @override
+  def on_run_step_created(self, run_step: RunStep) -> None:
+     if run_step.step_details.type == "tool_calls":
+        print("\n" + "--------------------------- vai ser codigo ---------------------------"+ "\n")
+        st.session_state.code_id = None
+        with st.chat_message("user",avatar="🤖"):
+            st.session_state.code_chat = st.empty()
+        st.session_state.report = []
+
+  
+  @override
+  def on_tool_call_delta(self, delta, snapshot):
+    if delta.type == 'code_interpreter':
+      if delta.code_interpreter.input:
+        st.session_state.report.append(delta.code_interpreter.input)
+        result = "". join (st.session_state.report). strip()
+        st.session_state.code_chat.code(f'{result}')
+        print(delta.code_interpreter.input, end="", flush=True)
+
+  @override
+  def on_run_step_done(self, run_step: RunStep):
+    if run_step.step_details.type == "tool_calls":
+        print("\n" + "--------------------------- terminou codido ---------------------------"+ "\n")
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": run_step.step_details.tool_calls[0].code_interpreter.input,
+                "type": "code"
+            }
+        ) 
+        with open("beta_openAI/teste.txt","a") as file:
+            file.write("\n"+ "----------------------------------------------------------------------------")
+            file.write("\n" + str(run_step.step_details.tool_calls[0].code_interpreter.input))

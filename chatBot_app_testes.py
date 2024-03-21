@@ -1,6 +1,6 @@
 from openai import OpenAI
 import streamlit as st
-from utils.utils import upload_file, upload_chat_history, update_chat_history, process_execution_steps,process_execution_steps_stream
+from utils.utils import upload_file, upload_chat_history, update_chat_history,process_execution_steps,process_execution_steps_stream, EventHandler
 
 #TODO: Melhorar o download dos ficheiros:
                 # - Definir um path comum a todos os utilizadores
@@ -14,14 +14,15 @@ from utils.utils import upload_file, upload_chat_history, update_chat_history, p
 # =============================== Global variables ================================= #
 
 OPENAI_API_KEY = "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"
-
-client = OpenAI(api_key=OPENAI_API_KEY)
-
 assistant_id = "asst_wyxEi4wVIxDKHheu8o3mu5qU"
 
 # Initialize all the session
+if "client" not in st.session_state:
+    st.session_state.client = OpenAI(api_key=OPENAI_API_KEY)
+
+
 if "file_id_list" not in st.session_state:
-    assistant_files = client.beta.assistants.files.list(
+    assistant_files = st.session_state.client.beta.assistants.files.list(
         assistant_id= assistant_id
         )
     st.session_state.file_id_list = [file.id for file in assistant_files.data]
@@ -91,7 +92,7 @@ with st.sidebar:
 
         # Upload file button - store the file id
         if st.button("**Upload file**",use_container_width=True) and file_upload is not None:
-            file_id = upload_file(client, f"{file_upload.name}")
+            file_id = upload_file(f"{file_upload.name}")
             st.session_state.file_id_list.append(file_id)
             st.write("**File uploaded**")
 
@@ -99,12 +100,12 @@ with st.sidebar:
 # Display those file ids
 if st.session_state.file_id_list:
     st.sidebar.write("**Uploaded files:**")
-    assistant_files = client.beta.assistants.files.list(
+    assistant_files = st.session_state.client.beta.assistants.files.list(
         assistant_id= assistant_id
         )
     file_ids = ''
     for file_id in st.session_state.file_id_list:
-        file = client.files.retrieve(file_id=file_id).filename
+        file = st.session_state.client.files.retrieve(file_id=file_id).filename
         file_ids += (f"- {file} ") + "\n"
         # if file_id not in assistant_files.data:
         #     assistant_file = client.beta.assistants.files.create(
@@ -119,7 +120,7 @@ st.sidebar.divider()
 with st.sidebar:
     with st.expander("**Chat history:**"):
         for thread_list, id_thread in reversed(st.session_state.thread_list.items()):
-            st.button(thread_list,use_container_width=True, on_click=upload_chat_history, args=[client,id_thread])
+            st.button(thread_list,use_container_width=True, on_click=upload_chat_history, args=[id_thread])
 
 st.sidebar.divider()
 
@@ -140,7 +141,7 @@ if st.sidebar.button("**New chat**",use_container_width=True, key='teste'):
         st.session_state.stat_chat = True
 
         # Create a new thread for this chat session
-        chat_thread = client.beta.threads.create()
+        chat_thread = st.session_state.client.beta.threads.create()
         st.session_state.thread_id = chat_thread.id
         update_chat_history(chat_thread.id)
 
@@ -182,19 +183,17 @@ if st.session_state.stat_chat:
             st.markdown(answer)
         
         # Add the user's message to the thread
-        client.beta.threads.messages.create(
+        st.session_state.client.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
             role="user",
             content=answer
         )
 
-        # Create a run with additional instructions
-        run = client.beta.threads.runs.create(
-            thread_id=st.session_state.thread_id,
-            assistant_id=assistant_id,
-            stream= True
-        )
+        with st.session_state.client.beta.threads.runs.create_and_stream(
+            thread_id= st.session_state.thread_id,
+            assistant_id= assistant_id,
+            event_handler=EventHandler(),
+        ) as stream:
+            stream.until_done()
 
-
-        process_execution_steps_stream(client, run,st.session_state.messages)
         st.rerun()
