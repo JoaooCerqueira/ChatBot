@@ -1,7 +1,7 @@
 import streamlit as st
-import datetime
+import datetime, base64
 from openai import AssistantEventHandler
-from openai.types.beta.threads import Message, MessageDelta, Text
+from openai.types.beta.threads import Message, MessageDelta
 from openai.types.beta.threads.runs import RunStep
 from typing_extensions import override
 
@@ -13,7 +13,6 @@ def upload_file(file_path):
         )
     return response.id
 
-#TODO: ARRANJAR ESTA FUNCÃO, ACHO QUE NAO PRECISO DAS ANNOTATIONS
 def process_message_with_citations(message):
     """Extract content and annotations from the message and format citations as footnotes."""
     for message in message.content:
@@ -30,18 +29,6 @@ def process_message_with_citations(message):
                 message_content.value = message_content.value.replace(
                     annotation.text, f" [{index + 1}]"
                 )
-
-            # Add the citation to the list
-                # Iterate over the annotations and add footnotes
-            # for index, annotation in enumerate(annotations):
-                # Replace the text with a footnote
-                # message_content.value = message_content.value.replace(annotation.text, f' [{index}]')
-                # if (file_path := getattr(annotation, 'file_path', None)):
-                #     cited_file = client.files.retrieve(file_path.file_id)
-                #     cited_file_id = cited_file.id
-                #     output_path = "C:/Users/joao.cerqueira/Desktop/projeto - automação/beta_openAI/"+ os.path.basename(cited_file.filename)
-                #     write_file_to_temp_dir(cited_file_id, output_path)
-                #     citations.append(f'[{index}] File was been created in {output_path}')
 
             full_response = message_content.value + "\n\n" + "\n".join(citations)
             st.session_state.messages.append(
@@ -111,7 +98,7 @@ def process_execution_steps(run_id):
 def process_execution_steps_stream(stream, messages):
     aux = None
     for event in stream:
-        with open("beta_openAI/teste.txt","a") as file:
+        with open("teste.txt","a") as file:
             file.write("/n"+ "----------------------------------------------------------------------------")
             file.write("/n" + str(event))
         if event.event == "thread.message.in_progress":
@@ -121,7 +108,7 @@ def process_execution_steps_stream(stream, messages):
             st.session_state.message_id = event.data.id
 
             for content in stream:
-                with open("beta_openAI/teste.txt","a") as file:
+                with open("teste.txt","a") as file:
                     file.write("/n" + " ----------------------------------------------------------------------------")
                     file.write("/n" + str(content))
                 if content.event == 'thread.message.delta' and content.data.id == st.session_state.message_id:
@@ -162,7 +149,7 @@ def process_execution_steps_stream(stream, messages):
                 report = []
             st.session_state.step_id = event.data.id
             for content in stream:
-                with open("beta_openAI/teste.txt","a") as file:
+                with open("teste.txt","a") as file:
                     file.write("/n"+ "----------------------------------------------------------------------------")
                     file.write("/n" + str(content))
                 if content.event == 'thread.run.step.delta' and content.data.id == st.session_state.step_id:
@@ -238,45 +225,61 @@ def update_chat_history(thread_id):
 
     data_atual = datetime.date.today()
     name = "chat "+ data_atual.strftime("%d-%m-%Y") + " " + hora_atual.strftime("%H:%M:%S")
-    with open("beta_openAI/files/thread_list.txt", "a") as file:
+    with open("files/thread_list.txt", "a") as file:
         file.write("\n" + name + " , " + thread_id)
     file.close()
     st.session_state.thread_list[name] = thread_id
 
-
 class EventHandler(AssistantEventHandler):
-  # ------------------------------------------  Text  ------------------------------------------  
-  @override
-  def on_text_created(self, text) -> None:
-    print("\n" + "--------------------------- vai ser texto ---------------------------"+ "\n")
-    with st.chat_message("user",avatar="🤖"):
-        st.session_state.message_chat = st.empty()
-    st.session_state.report = []
-    print(f"\nassistant > ", end="", flush=True)
+  
+  # ------------------------------------------  Message  ------------------------------------------ 
+  def on_message_created(self, message: Message) -> None:
+      print("\n" + "--------------------------- vai ser message ---------------------------"+ "\n")
+      with st.chat_message("user",avatar="🤖"):
+          st.session_state.message_chat = st.empty()
+      st.session_state.report = []
+      print(f"\nassistant > ", end="", flush=True)
 
-  @override
-  def on_text_delta(self, delta, snapshot):
-    st.session_state.report.append(delta.value)
-    result = "". join (st.session_state.report). strip()
-    st.session_state.message_chat.markdown(f'{result}')
-    print(delta.value, end="", flush=True)
+  def on_message_delta(self, delta: MessageDelta, snapshot: Message):
+      print("\n" + "-----------------------------------------------------"+ "\n")
+      print(delta)
+      print("\n" + "-----------------------------------------------------"+ "\n")
+      if delta.content[0].text.value != None:
+            st.session_state.report.append(delta.content[0].text.value)
+            result = "".join(st.session_state.report).strip()
+            st.session_state.message_chat.markdown(f'{result}')
 
-  @override
-  def on_text_done(self, text: Text):
-     print("\n" + "--------------------------- terminou texto ---------------------------"+ "\n")
-     st.session_state.messages.append(
-         {
-             "role": "assistant",
-             "content": text.value,
-             "type": "text"
-             }
-     )   
-     with open("beta_openAI/teste.txt","a") as file:
-            file.write("\n"+ "----------------------------------------------------------------------------")
-            file.write("\n" + str(text.value))
+      if delta.content[0].text.annotations != [] and delta.content[0].text.annotations != None:
+          file_id = delta.content[0].text.annotations[0].file_path.file_id
+          file = st.session_state.client.files.content(file_id).content
+          print(file)
+          print(type(file))
+          b64_data = base64.b64encode(file).decode()
+          st.session_state.messages.append(
+              {
+                  "role": "assistant",
+                    "content": b64_data,
+                    "type": "link"
+              }
+          ) 
 
+
+  def on_message_done(self, message: Message):
+     print("\n" + "--------------------------- terminou message ---------------------------"+ "\n")
+     if message.content[0].text.value.count("sandbox") == 0:
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": message.content[0].text.value,
+                "type": "text"
+                }
+        ) 
+     with open("teste.txt","a") as file:
+            file.write("\n"+ "------------------------------- Message -------------------------------------")
+            file.write("\n" + str(message.content[0].text.value))
+            file.write("\n"+ "---------------------------------------------------------------------------")
+  
   # ------------------------------------------  Image  ------------------------------------------ 
-
   @override
   def on_image_file_done(self, image_file):
       image_1file = image_file.file_id
@@ -323,6 +326,47 @@ class EventHandler(AssistantEventHandler):
                 "type": "code"
             }
         ) 
-        with open("beta_openAI/teste.txt","a") as file:
-            file.write("\n"+ "----------------------------------------------------------------------------")
+        with open("teste.txt","a") as file:
+            file.write("\n"+ "------------------------------- CODIGO ------------------------------------")
             file.write("\n" + str(run_step.step_details.tool_calls[0].code_interpreter.input))
+            file.write("\n"+ "---------------------------------------------------------------------------")
+       
+  # -------------------------------------------  Finish  --------------------------------------------
+  def on_end(self):
+      st.rerun()
+
+
+#   # ------------------------------------------  Text  ------------------------------------------  
+#   @override
+#   def on_text_created(self, text) -> None:
+#     print("\n" + "--------------------------- vai ser texto ---------------------------"+ "\n")
+#     with st.chat_message("user",avatar="🤖"):
+#         st.session_state.message_chat = st.empty()
+#     st.session_state.report = []
+#     print(f"\nassistant > ", end="", flush=True)
+
+#   @override
+#   def on_text_delta(self, delta, snapshot):
+#     print("\n" + "-----------------------------------------------------"+ "\n")
+#     print(delta.value, end="", flush=True)
+#     print("\n" + "-----------------------------------------------------"+ "\n")
+#     if delta.value != None:
+#         st.session_state.report.append(delta.value)
+#         result = "".join(st.session_state.report).strip()
+#         st.session_state.message_chat.markdown(f'{result}')
+
+
+#   @override
+#   def on_text_done(self, text: Text):
+#      print("\n" + "--------------------------- terminou texto ---------------------------"+ "\n")
+#      st.session_state.messages.append(
+#          {
+#              "role": "assistant",
+#              "content": text.value,
+#              "type": "text"
+#              }
+#      )   
+#      with open("teste.txt","a") as file:
+#             file.write("\n"+ "------------------------------- TEXTO -------------------------------------")
+#             file.write("\n" + str(text.value))
+#             file.write("\n"+ "---------------------------------------------------------------------------")

@@ -1,20 +1,26 @@
 from openai import OpenAI
 import streamlit as st
-import time
-from utils.utils import upload_file, upload_chat_history, update_chat_history, process_execution_steps
 
+from utils.utils import (
+    EventHandler,
+    update_chat_history,
+    upload_chat_history,
+    upload_file,
+)
 
 # =============================== Global variables ================================= #
 
 OPENAI_API_KEY = "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"
 
-client = OpenAI(api_key=OPENAI_API_KEY)
-
-assistant_id = "asst_wyxEi4wVIxDKHheu8o3mu5qU"
+assistant_id = "asst_Mt4yGoyIFPK7bEvms5pa6qlR"
 
 # Initialize all the session
+if "client" not in st.session_state:
+    st.session_state.client = OpenAI(api_key=OPENAI_API_KEY)
+
+
 if "file_id_list" not in st.session_state:
-    assistant_files = client.beta.assistants.files.list(
+    assistant_files = st.session_state.client.beta.assistants.files.list(
         assistant_id= assistant_id
         )
     st.session_state.file_id_list = [file.id for file in assistant_files.data]
@@ -29,7 +35,7 @@ if "thread_id" not in st.session_state:
 
 
 if "thread_list" not in st.session_state:
-    with open("beta_openAI/files/thread_list.txt", "r") as file:
+    with open("files/thread_list.txt", "r") as file:
         lines = file.readlines()
 
     thread_info = {}
@@ -39,10 +45,6 @@ if "thread_list" not in st.session_state:
         thread_info[name.strip()] = thread_id.strip()
 
     st.session_state.thread_list = thread_info
-
-
-if 'but_last_chat' not in st.session_state:
-    st.session_state.but_last_chat = False
 
 
 if "messages" not in st.session_state:
@@ -58,11 +60,11 @@ st.set_page_config(
 )
 
 # initialize css
-with open("beta_openAI/styles.css") as f:
+with open("utils/styles.css") as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 # SideBar - Image 
-st.sidebar.image("images/Rangel.png")
+st.sidebar.image("images\\Rangel.png")
 st.sidebar.divider()
 
 # SideBar - Upload files
@@ -75,7 +77,7 @@ with st.sidebar:
 
         # Upload file button - store the file id
         if st.button("**Upload file**",use_container_width=True) and file_upload is not None:
-            file_id = upload_file(client, f"{file_upload.name}")
+            file_id = upload_file(st.session_state.client, f"{file_upload.name}")
             st.session_state.file_id_list.append(file_id)
             st.write("**File uploaded**")
 
@@ -83,13 +85,12 @@ with st.sidebar:
 # Display those file ids
 if st.session_state.file_id_list:
     st.sidebar.write("**Uploaded files:**")
-    assistant_files = client.beta.assistants.files.list(
+    assistant_files = st.session_state.client.beta.assistants.files.list(
         assistant_id= assistant_id
-        )
-    
+        ) 
     file_ids = ''
     for file_id in st.session_state.file_id_list:
-        file = client.files.retrieve(file_id=file_id).filename
+        file = st.session_state.client.files.retrieve(file_id=file_id).filename
         file_ids += (f"- {file} ") + "\n"
 
     st.sidebar.markdown(file_ids)
@@ -100,7 +101,7 @@ st.sidebar.divider()
 with st.sidebar:
     with st.expander("**Chat history:**"):
         for thread_list, id_thread in reversed(st.session_state.thread_list.items()):
-            st.button(thread_list,use_container_width=True, on_click=upload_chat_history, args=[client,id_thread])
+            st.button(thread_list,use_container_width=True, on_click=upload_chat_history, args=[id_thread])
 
 st.sidebar.divider()
 
@@ -119,18 +120,17 @@ if st.sidebar.button("**New chat**",use_container_width=True, key='teste'):
 
     if st.session_state.file_id_list:
         st.session_state.stat_chat = True
-
         # Create a new thread for this chat session
-        chat_thread = client.beta.threads.create()
+        chat_thread = st.session_state.client.beta.threads.create()
         st.session_state.thread_id = chat_thread.id
         update_chat_history(chat_thread.id)
-
         st.rerun()
     else:
         st.sidebar.warning("**No files found. Please upload a file first.**")
 
 # =============================== Main interface ==================================== #
-st.title("Rangel ChatBot - v1.1 💻")
+st.title("Rangel ChatBot - v2.0 💻")
+st.write("#")
 
 # Check sessions
 if st.session_state.stat_chat:
@@ -144,6 +144,9 @@ if st.session_state.stat_chat:
                     st.code(message["content"], language="python")
                 elif message["type"] == "image":
                     st.image(message["content"])
+                elif message["type"] == "link":
+                    st.markdown("Clica no link para fazer download do arquivo: ")
+                    st.markdown(f'<a href="data:file/csv;base64,{message["content"]}" download="dados.csv">Download CSV</a>',unsafe_allow_html=True)
         else:
             with st.chat_message(message["role"],avatar="👤"):
                 if message["type"] == "text":
@@ -162,27 +165,22 @@ if st.session_state.stat_chat:
             st.markdown(answer)
 
         # add the user's message to the thread
-        client.beta.threads.messages.create(
+        st.session_state.client.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
             role="user",
             content=answer
         )
 
-        # Create a run with additional instructions
-        run = client.beta.threads.runs.create(
-            thread_id=st.session_state.thread_id,
-            assistant_id=assistant_id,
+        # Add the user's message to the thread
+        st.session_state.client.beta.threads.messages.create(
+            thread_id=st.session_state.thread_id, role="user", content=answer
         )
 
-        # Show a spinner while the assistant is thinking
-        with st.spinner("Waiting for the assistant to answer..."):
-            while run.status != "completed":
-                time.sleep(1)
-                run = client.beta.threads.runs.retrieve(
-                    thread_id = st.session_state.thread_id,
-                    run_id = run.id
-                )
+        with st.session_state.client.beta.threads.runs.create_and_stream(
+            thread_id=st.session_state.thread_id,
+            assistant_id=assistant_id,
+            event_handler=EventHandler(),
+        ) as stream:
+            stream.until_done()
 
-            process_execution_steps(client,run.id)
-        
-        st.rerun()
+
