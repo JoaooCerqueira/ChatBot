@@ -1,17 +1,40 @@
 import streamlit as st
 import datetime, base64
-from openai import AssistantEventHandler
+from openai import AssistantEventHandler, BadRequestError
 from openai.types.beta.threads import Message, MessageDelta
 from openai.types.beta.threads.runs import RunStep
 from typing_extensions import override
 
+def delete_file(assistant_id):
+    file_id = st.session_state.file_id_list.pop(0)
+    st.session_state.client.beta.assistants.files.delete(
+        assistant_id=assistant_id,
+        file_id=file_id,
+    )
 
-def upload_file(file_path):
+def upload_file(assistant_id, file_path):
+    if st.session_state.file_id_list != []:
+        file_id = st.session_state.file_id_list.pop(0)
+        st.session_state.client.beta.assistants.files.delete(
+            assistant_id=assistant_id,
+            file_id=file_id,
+        )
+               
     response =  st.session_state.client.files.create(
-        file=open(file_path, "rb"),
+        file=file_path,
         purpose="assistants",
         )
-    return response.id
+
+    try: 
+        st.session_state.client.beta.assistants.files.create(
+            assistant_id = assistant_id,
+            file_id = response.id
+            )
+    except BadRequestError as e:
+        pass
+    
+    st.session_state.file_id_list.append(response.id)
+
 
 def process_message_with_citations(message):
     """Extract content and annotations from the message and format citations as footnotes."""
@@ -231,7 +254,11 @@ def update_chat_history(thread_id):
     st.session_state.thread_list[name] = thread_id
 
 class EventHandler(AssistantEventHandler):
-  
+  # ------------------------------------------  Errors  ------------------------------------------
+  def on_event(self, event):
+      if event.data.last_error != None:
+        st.session_state.error = event.data.last_error.message
+
   # ------------------------------------------  Message  ------------------------------------------ 
   def on_message_created(self, message: Message) -> None:
       print("\n" + "--------------------------- vai ser message ---------------------------"+ "\n")
@@ -333,6 +360,8 @@ class EventHandler(AssistantEventHandler):
        
   # -------------------------------------------  Finish  --------------------------------------------
   def on_end(self):
+      
+      print("\n" + "--------------------------- terminou ---------------------------"+ "\n")
       st.rerun()
 
 

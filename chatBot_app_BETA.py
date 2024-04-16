@@ -19,6 +19,10 @@ if "client" not in st.session_state:
     st.session_state.client = OpenAI(api_key=OPENAI_API_KEY)
 
 
+if "error" not in st.session_state:
+    st.session_state.error = ""
+
+
 if "file_id_list" not in st.session_state:
     assistant_files = st.session_state.client.beta.assistants.files.list(
         assistant_id= assistant_id
@@ -64,7 +68,7 @@ with open("utils/styles.css") as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 # SideBar - Image 
-st.sidebar.image("images\\Rangel.png")
+st.sidebar.image("images/Rangel.png")
 st.sidebar.divider()
 
 # SideBar - Upload files
@@ -77,8 +81,7 @@ with st.sidebar:
 
         # Upload file button - store the file id
         if st.button("**Upload file**",use_container_width=True) and file_upload is not None:
-            file_id = upload_file(st.session_state.client, f"{file_upload.name}")
-            st.session_state.file_id_list.append(file_id)
+            upload_file(assistant_id, file_upload)
             st.write("**File uploaded**")
 
         
@@ -94,6 +97,9 @@ if st.session_state.file_id_list:
         file_ids += (f"- {file} ") + "\n"
 
     st.sidebar.markdown(file_ids)
+else:
+    st.sidebar.write("**Uploaded files:**")
+
 
 st.sidebar.divider()
 
@@ -129,7 +135,7 @@ if st.sidebar.button("**New chat**",use_container_width=True, key='teste'):
         st.sidebar.warning("**No files found. Please upload a file first.**")
 
 # =============================== Main interface ==================================== #
-st.title("Rangel ChatBot - v2.0 💻")
+st.title("Rangel ChatBot - v2.1 💻")
 st.write("#")
 
 # Check sessions
@@ -152,8 +158,13 @@ if st.session_state.stat_chat:
                 if message["type"] == "text":
                     st.markdown(message["content"])
 
+    if st.session_state.error != "":
+        st.error(st.session_state.error)
+
+
     # Chat input for users
     if answer := st.chat_input("Escreve aqui a tua mensagem..."):
+        st.session_state.error = ""
         st.session_state.messages.append(
             {
                 "role": "user",
@@ -164,23 +175,21 @@ if st.session_state.stat_chat:
         with st.chat_message("user",avatar="👤"):
             st.markdown(answer)
 
-        # add the user's message to the thread
+        # Add the user's message to the thread
         st.session_state.client.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
             role="user",
             content=answer
         )
-
-        # Add the user's message to the thread
-        st.session_state.client.beta.threads.messages.create(
-            thread_id=st.session_state.thread_id, role="user", content=answer
-        )
-
-        with st.session_state.client.beta.threads.runs.create_and_stream(
-            thread_id=st.session_state.thread_id,
-            assistant_id=assistant_id,
-            event_handler=EventHandler(),
-        ) as stream:
-            stream.until_done()
+        try:
+            with st.session_state.client.beta.threads.runs.create_and_stream(
+                thread_id=st.session_state.thread_id,
+                assistant_id=assistant_id,
+                event_handler=EventHandler(),
+            ) as stream:
+                stream.until_done()
+        except Exception as e:
+            st.write(e)
+            
 
 
