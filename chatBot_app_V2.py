@@ -1,5 +1,7 @@
 from openai import OpenAI
 import streamlit as st
+import requests
+import threading
 
 from utils.utils import (
     EventHandler,
@@ -11,9 +13,15 @@ from utils.utils import (
 # =============================== Global variables ================================= #
 
 OPENAI_API_KEY = "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"
+SESSION_KEY = "sess-6I3UUiuuPcHdnMs6ugSPFCCqTRFm6JiNGVYAeMUV"
 
 assistant_id = "asst_PdnVGiPkET6NwEVGA4ZDMpNS"
 
+url = "https://api.openai.com/dashboard/billing/credit_grants"
+headers = {"Authorization": f"Bearer {SESSION_KEY}", "Content_type" : "aplication/json"}
+request_method = "GET"
+
+print("ola ")
 
 # Initialize all the session
 if "client" not in st.session_state:
@@ -58,6 +66,22 @@ if "thread_list" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+
+if "total_current_tokens" not in st.session_state:
+    st.session_state.total_current_tokens = 0
+
+if "total_available_money" not in st.session_state:
+     response = requests.request(request_method, url, headers=headers)
+     print(response.status_code)
+     if response.status_code == 429:
+         with open("files/money.txt", "r") as file:
+             st.session_state.total_available_money = float(file.read())
+     else:
+         st.session_state.total_available_money = response.json().get("total_available")
+         with open("files/money.txt", "w") as file:
+             file.write(str(st.session_state.total_available_money))
+    
+
 # ================================================================================== #
 
 # Set up our front end page
@@ -75,6 +99,10 @@ with open("utils/styles.css") as f:
 st.sidebar.image("images/Rangel.png")
 st.sidebar.divider()
 
+
+st.sidebar.write(f"**Total available Money: {st.session_state.total_available_money}€**")
+st.sidebar.write(f"**Total current Tokens: {st.session_state.total_current_tokens} tokens**")
+st.sidebar.divider()
 # SideBar - Upload files
 with st.sidebar:
     with st.expander("**Upload files**"):
@@ -88,7 +116,7 @@ with st.sidebar:
             upload_file(assistant_id, file_upload)
             st.write("**File uploaded**")
 
-        
+     
 # Display those file ids
 if st.session_state.file_id_list:
     st.sidebar.write("**Uploaded files:**")
@@ -134,6 +162,25 @@ if st.sidebar.button("**New chat**",use_container_width=True, key='teste'):
         st.rerun()
     else:
         st.sidebar.warning("**No files found. Please upload a file first.**")
+
+st.sidebar.divider()
+
+with st.sidebar:
+
+    with open("files/new_features.txt", "r") as file:
+             lines = file.readlines()
+
+    features = ''
+    for line in lines:
+        features +="\n"+ (f"- {line} ") + "\n"
+
+    st.info(f"new features: {features}", icon="🚀")
+
+   
+    
+    
+    
+
 
 # =============================== Main interface ==================================== #
 st.title("Rangel ChatBot - v2.1 💻")
@@ -183,7 +230,7 @@ if st.session_state.stat_chat:
             content=answer
         )
         try:
-            with st.session_state.client.beta.threads.runs.create_and_stream(
+            with st.session_state.client.beta.threads.runs.stream(
                 thread_id=st.session_state.thread_id,
                 assistant_id=assistant_id,
                 event_handler=EventHandler(),

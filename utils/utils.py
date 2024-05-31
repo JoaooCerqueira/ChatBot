@@ -284,23 +284,22 @@ class EventHandler(AssistantEventHandler):
     #   def on_event(self, event):
     #   if event.data.last_error != None:
     #     st.session_state.error = event.data.last_error.message
-
     # ------------------------------------------  Message  ------------------------------------------
     def on_message_created(self, message: Message) -> None:
-        print(
-            "\n"
-            + "--------------------------- vai ser message ---------------------------"
-            + "\n"
-        )
+        # print(
+        #     "\n"
+        #     + "--------------------------- vai ser message ---------------------------"
+        #     + "\n"
+        # )
         with st.chat_message("user", avatar="🤖"):
             st.session_state.message_chat = st.empty()
         st.session_state.report = []
-        print(f"\nassistant > ", end="", flush=True)
+        # print(f"\nassistant > ", end="", flush=True)
 
     def on_message_delta(self, delta: MessageDelta, snapshot: Message):
-        print("\n" + "-----------------------------------------------------" + "\n")
-        print(delta)
-        print("\n" + "-----------------------------------------------------" + "\n")
+        # print("\n" + "-----------------------------------------------------" + "\n")
+        # print(delta)
+        # print("\n" + "-----------------------------------------------------" + "\n")
         if delta.content[0].text.value != None:
             st.session_state.report.append(delta.content[0].text.value)
             result = "".join(st.session_state.report).strip()
@@ -310,21 +309,24 @@ class EventHandler(AssistantEventHandler):
             delta.content[0].text.annotations != []
             and delta.content[0].text.annotations != None
         ):
+            # print("\n" + "-------------------------- here ---------------------------" + "\n")
             file_id = delta.content[0].text.annotations[0].file_path.file_id
             file = st.session_state.client.files.content(file_id).content
-            print(file)
-            print(type(file))
+            # print(file)
+            # print(type(file))
             b64_data = base64.b64encode(file).decode()
+            # print(b64_data)
             st.session_state.messages.append(
                 {"role": "assistant", "content": b64_data, "type": "link"}
             )
+            # print("\n" + "-------------------------- here123 ---------------------------" + "\n")
 
     def on_message_done(self, message: Message):
-        print(
-            "\n"
-            + "--------------------------- terminou message ---------------------------"
-            + "\n"
-        )
+        # print(
+        #     "\n"
+        #     + "--------------------------- terminou message ---------------------------"
+        #     + "\n"
+        # )
         if message.content[0].text.value.count("sandbox") == 0:
             st.session_state.messages.append(
                 {
@@ -359,11 +361,11 @@ class EventHandler(AssistantEventHandler):
     @override
     def on_run_step_created(self, run_step: RunStep) -> None:
         if run_step.step_details.type == "tool_calls":
-            print(
-                "\n"
-                + "--------------------------- vai ser codigo ---------------------------"
-                + "\n"
-            )
+            # print(
+            #     "\n"
+            #     + "--------------------------- vai ser codigo ---------------------------"
+            #     + "\n"
+            # )
             st.session_state.code_id = None
             with st.chat_message("user", avatar="🤖"):
                 st.session_state.code_chat = st.empty()
@@ -376,16 +378,16 @@ class EventHandler(AssistantEventHandler):
                 st.session_state.report.append(delta.code_interpreter.input)
                 result = "".join(st.session_state.report).strip()
                 st.session_state.code_chat.code(f"{result}")
-                print(delta.code_interpreter.input, end="", flush=True)
+                # print(delta.code_interpreter.input, end="", flush=True)
 
     @override
     def on_run_step_done(self, run_step: RunStep):
         if run_step.step_details.type == "tool_calls":
-            print(
-                "\n"
-                + "--------------------------- terminou codido ---------------------------"
-                + "\n"
-            )
+            # print(
+            #     "\n"
+            #     + "--------------------------- terminou codido ---------------------------"
+            #     + "\n"
+            # )
             st.session_state.messages.append(
                 {
                     "role": "assistant",
@@ -412,11 +414,15 @@ class EventHandler(AssistantEventHandler):
     # -------------------------------------------  Finish  --------------------------------------------
 
 
-#   def on_end(self):
+        
+    def on_end(self):
+        # print("\n" + "--------------------------- terminou ---------------------------"+ "\n")        
+        st.rerun()
 
-#       print("\n" + "--------------------------- terminou ---------------------------"+ "\n")
-#       st.rerun()
-
+    def on_event(self, event):
+        if event.event == "thread.run.completed":
+            print(event.data)
+            st.session_state.total_tokens_current = event.data.usage.total_tokens
 
 #   # ------------------------------------------  Text  ------------------------------------------
 #   @override
