@@ -86,7 +86,7 @@ if "total_available_money" not in st.session_state:
 
 # Set up our front end page
 st.set_page_config(
-    page_title="Rangel ChatBot",
+    page_title="ChatBot",
     page_icon=":bar_chart:",
     initial_sidebar_state="expanded",
 )
@@ -96,7 +96,7 @@ with open("utils/styles.css") as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 # SideBar - Image 
-st.sidebar.image("images/Rangel.png")
+st.sidebar.image("images/ChatBot.png")
 st.sidebar.divider()
 
 
@@ -183,7 +183,7 @@ with st.sidebar:
 
 
 # =============================== Main interface ==================================== #
-st.title("Rangel ChatBot - v2.1 💻")
+st.title("ChatBot - v2.1 💻")
 st.write("#")
 
 # Check sessions

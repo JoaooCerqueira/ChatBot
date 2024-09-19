@@ -58,7 +58,7 @@ if "messages" not in st.session_state:
 
 # Set up our front end page
 st.set_page_config(
-    page_title="Rangel ChatBot",
+    page_title="ChatBot",
     page_icon=":bar_chart:",
     initial_sidebar_state="expanded",
 )
@@ -135,7 +135,7 @@ if st.sidebar.button("**New chat**",use_container_width=True, key='teste'):
         st.sidebar.warning("**No files found. Please upload a file first.**")
 
 # =============================== Main interface ==================================== #
-st.title("Rangel ChatBot - v2.1 💻")
+st.title("ChatBot - v2.1 💻")
 st.write("#")
 
 # Check sessions

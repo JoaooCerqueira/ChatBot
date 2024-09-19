@@ -69,7 +69,7 @@ if "message_id" not in st.session_state:
     
 # Set up our front end page
 st.set_page_config(
-    page_title="Rangel ChatBot",
+    page_title="ChatBot",
     page_icon=":bar_chart:",
     initial_sidebar_state="expanded",
 )
@@ -79,7 +79,7 @@ with open("beta_openAI/styles.css") as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 # SideBar - Image 
-st.sidebar.image("images\\Rangel.png")
+st.sidebar.image("images\\Chatbot.png")
 st.sidebar.divider()
 
 # SideBar - Upload files
@@ -150,7 +150,7 @@ if st.sidebar.button("**New chat**",use_container_width=True, key='teste'):
         st.sidebar.warning("**No files found. Please upload a file first.**")
 
 # =============================== Main interface ==================================== #
-st.title("Rangel ChatBot - v1.2 💻")
+st.title("ChatBot - v1.2 💻")
 
 # Check sessions
 if st.session_state.stat_chat:
