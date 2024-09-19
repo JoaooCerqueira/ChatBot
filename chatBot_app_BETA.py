@@ -68,7 +68,7 @@ with open("utils/styles.css") as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 # SideBar - Image 
-st.sidebar.image("images/Rangel.png")
+st.sidebar.image("images/Chatbot.png")
 st.sidebar.divider()
 
 # SideBar - Upload files
