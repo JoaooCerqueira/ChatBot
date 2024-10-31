@@ -10,9 +10,9 @@ from utils.utils import (
 
 # =============================== Global variables ================================= #
 
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = ""
 
-assistant_id = "asst_Mt4yGoyIFPK7bEvms5pa6qlR"
+assistant_id = ""
 
 # Initialize all the session
 if "client" not in st.session_state:

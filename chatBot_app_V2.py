@@ -12,10 +12,10 @@ from utils.utils import (
 
 # =============================== Global variables ================================= #
 
-OPENAI_API_KEY = "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"
-SESSION_KEY = "sess-6I3UUiuuPcHdnMs6ugSPFCCqTRFm6JiNGVYAeMUV"
+OPENAI_API_KEY = ""
+SESSION_KEY = ""
 
-assistant_id = "asst_PdnVGiPkET6NwEVGA4ZDMpNS"
+assistant_id = ""
 
 url = "https://api.openai.com/dashboard/billing/credit_grants"
 headers = {"Authorization": f"Bearer {SESSION_KEY}", "Content_type" : "aplication/json"}

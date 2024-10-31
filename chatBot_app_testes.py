@@ -13,8 +13,8 @@ from utils.utils import upload_file, upload_chat_history, update_chat_history,pr
 
 # =============================== Global variables ================================= #
 
-OPENAI_API_KEY = "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"
-assistant_id = "asst_wyxEi4wVIxDKHheu8o3mu5qU"
+OPENAI_API_KEY = ""
+assistant_id = ""
 
 # Initialize all the session
 if "client" not in st.session_state:
